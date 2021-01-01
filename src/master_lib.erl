@@ -40,7 +40,7 @@ boot(EnvArgsStr)->
     init_dbase(),
     % Start master on this host 
 
-    {ok,AppSpec}=applcation:get_env(master,app_spec),
+    {ok,AppSpec}=application:get_env(master,app_spec),
     {ok,_,_,_,_}=control:create_application(AppSpec),
 
     % Terminate and remove boot master 
