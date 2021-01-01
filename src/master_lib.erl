@@ -34,7 +34,7 @@ boot(EnvArgsStr)->
     [application:set_env(?MODULE,Par,Val)||
 	{Par,Val}<-args_to_term:transform(EnvArgsStr)],
     % Update local dbase for boot
-    init_dabase(),
+    init_dbase(),
     % start local dbase 
     ok=application:start(master),
     
@@ -64,7 +64,7 @@ boot(EnvArgsStr)->
 %% Description: List of test cases 
 %% Returns: non
 %% --------------------------------------------------------------------
-init_dabase()->
+init_dbase()->
     {ok,GitUser}=application:get_env(git_user),
     {ok,GitPassWd}=application:get_env(git_pw),
     {ok,ClusterConfigDir}=application:get_env(cl_dir),
