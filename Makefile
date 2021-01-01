@@ -47,4 +47,4 @@ boot:
 	     { git_user str joq62 } { git_pw str 20Qazxsw20 } { cl_dir str cluster_config }\
 	     { cl_file str cluster_info.hrl } { app_specs_dir str app_specs }\
 	     { service_specs_dir str service_specs }\
-	    -sname master -setcookie app_test -detached;
+	    -sname boot -setcookie app_test -detached;

@@ -49,12 +49,7 @@
 
 %% Asynchrounus Signals
 boot(EnvArgsStr)->
-   % io:format("TRansformed ~p~n",[args_to_term:transform(EnvArgsStr)]),
-    EnvArgsTuples=args_to_term:transform(EnvArgsStr),
-    [application:set_env(?MODULE,Par,Val)||{Par,Val}<-EnvArgsTuples],
-  %  io:format("GetEnv ~p~n",[[application:get_env(?MODULE,Par)||{Par,_Val}<-EnvArgsTuples]]),
-    ok=application:start(?MODULE),
-    ok.
+    ok=master_lib:boot(EnvArgsStr).
 
 
 %% Gen server functions
