@@ -38,11 +38,10 @@ boot(EnvArgsStr)->
     
    % Update local dbase for boot
     init_dbase(),
-    % Get app spec for this host master 
+    % Start master on this host 
 
-
-    % starart master on this host 
-
+    {ok,AppSpec}=applcation:get_env(master,app_spec),
+    {ok,_,_,_,_}=control:create_application(AppSpec),
 
     % Terminate and remove boot master 
 
