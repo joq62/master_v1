@@ -33,11 +33,11 @@ boot(EnvArgsStr)->
     %% Set master env 
     [application:set_env(master,Par,Val)||
 	{Par,Val}<-args_to_term:transform(EnvArgsStr)],
-    % Update local dbase for boot
-    init_dbase(),
     % start local dbase 
     ok=application:start(master),
     
+   % Update local dbase for boot
+    init_dbase(),
     % Get app spec for this host master 
 
 
