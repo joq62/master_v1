@@ -31,7 +31,7 @@
 %% --------------------------------------------------------------------
 boot(EnvArgsStr)->
     %% Set master env 
-    [application:set_env(?MODULE,Par,Val)||
+    [application:set_env(master,Par,Val)||
 	{Par,Val}<-args_to_term:transform(EnvArgsStr)],
     % Update local dbase for boot
     init_dbase(),
@@ -65,12 +65,12 @@ boot(EnvArgsStr)->
 %% Returns: non
 %% --------------------------------------------------------------------
 init_dbase()->
-    {ok,GitUser}=application:get_env(git_user),
-    {ok,GitPassWd}=application:get_env(git_pw),
-    {ok,ClusterConfigDir}=application:get_env(cl_dir),
-    {ok,ClusterConfigFileName}=application:get_env(cl_file),
-    {ok,AppSpecsDir}=application:get_env(app_specs_dir),
-    {ok,ServiceSpecsDir}=application:get_env(service_specs_dir),
+    {ok,GitUser}=application:get_env(master,git_user),
+    {ok,GitPassWd}=application:get_env(master,git_pw),
+    {ok,ClusterConfigDir}=application:get_env(master,cl_dir),
+    {ok,ClusterConfigFileName}=application:get_env(master,cl_file),
+    {ok,AppSpecsDir}=application:get_env(master,app_specs_dir),
+    {ok,ServiceSpecsDir}=application:get_env(master,service_specs_dir),
  
     ok=config_lib:load_app_specs(AppSpecsDir,GitUser,GitPassWd),
     ok=config_lib:load_service_specs(ServiceSpecsDir,GitUser,GitPassWd),
