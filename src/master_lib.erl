@@ -19,7 +19,8 @@
 
 %% --------------------------------------------------------------------
 %% External exports
--export([boot/1]).
+-export([boot/1,
+	 init_dbase/0]).
 
 %% ====================================================================
 %% External functions
@@ -30,19 +31,44 @@
 %% Returns: non
 %% --------------------------------------------------------------------
 boot(EnvArgsStr)->
+    %% ssh 
+    ssh:start(),
     %% Set master env 
     [application:set_env(master,Par,Val)||
 	{Par,Val}<-args_to_term:transform(EnvArgsStr)],
     % start local dbase 
     ok=application:start(master),
-    
+
    % Update local dbase for boot
     init_dbase(),
+
+   % Check and update machine status
+    StatusMachines=machine:status(all),
+    io:format("StatusMachines ~p~n",[StatusMachines]),
+    ok=machine:update_status(StatusMachines),
+    
     % Start master on this host 
 
     {ok,AppSpec}=application:get_env(master,app_spec),
-    {ok,_,_,_,_}=control:create_application(AppSpec),
+    {ok,AppSpec,HostId,VmId,Vm,_}=control:create_application(AppSpec),
+   
+  %  AllInfo=db_sd:read_all_info(),
+  %  io:format("AllInfo ~p~n",[AllInfo]),
+    [{ServiceId,ServiceVsn,AppSpec,AppVsn,HostId,VmId,VmDir,Vm}]=db_sd:app_spec(AppSpec),
+    
 
+    % Initiate dbase on the new node
+    [rpc:call(Vm,application,set_env,[master,Par,Val],2000)||
+	{Par,Val}<-args_to_term:transform(EnvArgsStr)],
+    ok=rpc:call(Vm,master_lib,init_dbase,[],5000),
+
+   
+
+    % Update sd
+    
+    ok=rpc:call(Vm,db_sd,create,[ServiceId,ServiceVsn,AppSpec,AppVsn,HostId,VmId,VmDir,Vm],5000),
+    [{ServiceId,ServiceVsn,AppSpec,AppVsn,HostId,VmId,VmDir,Vm}]=rpc:call(Vm,db_sd,spp_spec,[AppSpec],5000),
+    
     % Terminate and remove boot master 
 
     % End boot sequence

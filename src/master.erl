@@ -89,7 +89,7 @@ heartbeat(Interval)->
 %
 %% --------------------------------------------------------------------
 init(_Args) ->
-    spawn(fun()->h_beat(?HeartbeatInterval) end),
+ %   spawn(fun()->h_beat(?HeartbeatInterval) end),
     {ok, #state{}}.   
     
 %% --------------------------------------------------------------------
@@ -194,7 +194,7 @@ h_beat(HeartbeatInterval)->
 
     timer:sleep(HeartbeatInterval),
 
-    rpc:cast(node(),?MODULE,hearbeat,[HeartbeatInterval]).
+    rpc:cast(node(),?MODULE,heartbeat,[HeartbeatInterval]).
 			       
 				   
 			   

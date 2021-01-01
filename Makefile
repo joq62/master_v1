@@ -42,9 +42,18 @@ boot:
 	rm -rf ebin/* src/*.beam *.beam;
 	rm -rf  *~ */*~  erl_cra*;
 	rm -rf *_specs *_config;
-	erl -pa master/ebin\
+#	Common service
+	erlc -o ebin ../../services/common_src/src/*.erl;
+#	Dbase service
+	erlc -o ebin ../../services/dbase_src/src/*.erl;
+#	Control service
+	erlc -o ebin ../../services/control_src/src/*.erl;
+#	master application
+	cp src/*.app ebin;
+	erlc -o ebin src/*.erl;
+	erl -pa ebin\
 	    -run master boot\
 	     { git_user str joq62 } { git_pw str 20Qazxsw20 } { cl_dir str cluster_config }\
 	     { cl_file str cluster_info.hrl } { app_specs_dir str app_specs }\
-	     { service_specs_dir str service_specs }\
-	    -sname boot -setcookie app_test -detached;
+	     { service_specs_dir str service_specs } { app_spec  str master_100_c2.app_spec }\
+	    -sname boot -setcookie abc 
