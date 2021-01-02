@@ -42,12 +42,37 @@ boot(EnvArgsStr)->
    % Update local dbase for boot
     init_dbase(),
 
+
+  
    % Check and update machine status
     StatusMachines=machine:status(all),
     io:format("StatusMachines ~p~n",[StatusMachines]),
     ok=machine:update_status(StatusMachines),
     
-    % Start master on this host 
+  
+ %% Ensure that all masters are stopped 
+    AllAppSpecs=db_app_spec:all_app_specs(),
+%    io:format("AllAppSpecs ~p~n",[AllAppSpecs]),
+
+    AllAppSpecsInfo=[{AppSpec,db_app_spec:read(AppSpec)}||AppSpec<-AllAppSpecs ],
+
+ %   io:format("AllAppSpecsInfo ~p~n",[AllAppSpecsInfo]),
+    MastersToKill=[{XAppSpec,lists:keyfind(vm_dir,1,Directives),lists:keyfind(host,1,Directives),lists:keyfind(vm_id,1,Directives)}||
+		       {XAppSpec,[{_AppId,_AppVsn,Type,Directives,_Services}]}<-AllAppSpecsInfo,
+		       Type==master],
+  %  io:format("MastersToKill ~p~n",[MastersToKill]),
+   % glurk=MastersToKill,
+    io:format("Delete master dirs ~p~n",[
+					 [rpc:call(list_to_atom(VmId++"@"++HostId),file,del_dir_r,[VmDir],2000)||
+					     {_,{vm_dir,VmDir},{host,HostId},{vm_id,VmId}}<-MastersToKill]
+					]),
+     io:format("Stop master nodes ~p~n",[
+					 [rpc:call(list_to_atom(VmId++"@"++HostId),init,stop,[],2000)||
+					     {_,_,{host,HostId},{vm_id,VmId}}<-MastersToKill]
+					]),
+    timer:sleep(1500),
+    
+  % Start master on this host 
 
     {ok,AppSpec}=application:get_env(master,app_spec),
     {ok,AppSpec,HostId,VmId,Vm,_}=control:create_application(AppSpec),
