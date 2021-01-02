@@ -89,6 +89,7 @@ heartbeat(Interval)->
 %
 %% --------------------------------------------------------------------
 init(_Args) ->
+    ssh:start(),
  %   spawn(fun()->h_beat(?HeartbeatInterval) end),
     {ok, #state{}}.   
     
