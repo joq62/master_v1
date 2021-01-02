@@ -14,7 +14,6 @@
 %% --------------------------------------------------------------------
 %% Definitions
 -define(Terminal,'terminal@c2').
--define(Cookie,"abc").
 %% --------------------------------------------------------------------
 
 
@@ -32,77 +31,84 @@
 %% Returns: non
 %% --------------------------------------------------------------------
 boot(EnvArgsStr)->
-    
-    %% Start
+   
+    misc_oam:print("Start boot ~n"),
+    %% ssh 
+    ssh:start(),
     %% Set master env 
     [application:set_env(master,Par,Val)||
 	{Par,Val}<-args_to_term:transform(EnvArgsStr)],
+   % start local dbase 
    
-   % start local common 
-    misc_oam:print("StartCommon ~p~n",[common:start()]),
-   % start dbase
-    misc_oam:print("Start Dbase ~p~n",[dbase:start()]),
+
+
+   ok=application:start(master),
+
    % Update local dbase for boot
     init_dbase(),
   
-   
-    %% 1. Start ssh 
-    ssh:start(),
-    
-    % 2. Check and update machine status
+   % Check and update machine status
     StatusMachines=machine:status(all),
-    misc_oam:print("StatusMachines ~p~n",[StatusMachines]),
+    io:format("StatusMachines ~p~n",[StatusMachines]),
     ok=machine:update_status(StatusMachines),
     
+  
+ %% Ensure that all masters are stopped 
+    AllAppSpecs=db_app_spec:all_app_specs(),
+    io:format("AllAppSpecs ~p~n",[AllAppSpecs]),
 
-    %% 3. Check namen of MasterVm and start that one
+    AllAppSpecsInfo=[{AppSpec,db_app_spec:read(AppSpec)}||AppSpec<-AllAppSpecs ],
+
+ %   io:format("AllAppSpecsInfo ~p~n",[AllAppSpecsInfo]),
+    MastersToKill=[{XAppSpec,lists:keyfind(vm_dir,1,Directives),lists:keyfind(host,1,Directives),lists:keyfind(vm_id,1,Directives)}||
+		       {XAppSpec,[{_AppId,_AppVsn,Type,Directives,_Services}]}<-AllAppSpecsInfo,
+		       Type==master],
+  %  io:format("MastersToKill ~p~n",[MastersToKill]),
+   % glurk=MastersToKill,
+    io:format("Delete master dirs ~p~n",[
+					 [rpc:call(list_to_atom(VmId++"@"++HostId),file,del_dir_r,[VmDir],2000)||
+					     {_,{vm_dir,VmDir},{host,HostId},{vm_id,VmId}}<-MastersToKill]
+					]),
+    io:format("Stop master nodes ~p~n",[
+					 [rpc:call(list_to_atom(VmId++"@"++HostId),init,stop,[],2000)||
+					     {_,_,{host,HostId},{vm_id,VmId}}<-MastersToKill]
+					]),
+    timer:sleep(1500),
+    
+  % Start master on this host 
+
+    {ok,AppSpec}=application:get_env(master,app_spec),
+    {ok,AppSpec,HostId,VmId,Vm,_}=control:create_application(AppSpec),
    
+%    AllInfo=db_sd:read_all_info(),
+%    io:format("AllInfo ~p~n",[AllInfo]),
+    [{ServiceId,ServiceVsn,AppSpec,AppVsn,HostId,VmId,VmDir,Vm}]=db_sd:app_spec(AppSpec),
+    
 
-    {ok,MasterAppSpec}=application:get_env(master,app_spec),
-    misc_oam:print("MasterAppSpec ~p~n",[MasterAppSpec]),
-    [MasterAppInfo]=db_app_spec:read(MasterAppSpec),
-    {AppSpecId,AppVsn,master,Directives,Services}=MasterAppInfo,
-    {host,HostId}=lists:keyfind(host,1,Directives),
-    {vm_id,VmId}=lists:keyfind(vm_id,1,Directives),
-    {vm_dir,VmDir}=lists:keyfind(vm_dir,1,Directives),
-    
-    MasterNode=list_to_atom(VmId++"@"++HostId),
-    {ok,MasterNode}=vm:create(HostId,VmId,VmDir,?Cookie),
-    misc_oam:print("MasterNode ~p~n",[MasterNode]),
-    
-    %% Start now on Master Node same procedure as in boot
-    %% 1. ssh start
-    misc_oam:print("Start ssh ~p~n",[rpc:call(MasterNode,ssh,start,[],2000)]),
-    
-    %% Set application env on MasterNode
-    misc_oam:print("Set application env ~p~n",[[rpc:call(MasterNode,application,set_env,[master,Par,Val],2000)||
-					 {Par,Val}<-args_to_term:transform(EnvArgsStr)]]),
-    
-    %% 2. Create Services
-    CreateResult=[service:create(ServiceSpecId,VmDir,MasterNode)||ServiceSpecId<-Services],
-    misc_oam:print("Start master services ~p~n ",[CreateResult]),
-    {pong,_,master}=rpc:call(MasterNode,master,ping,[],200),
-    %% Init Dbase
-    misc_oam:print("InitDbase ~p~n ",[rpc:call(MasterNode,master_lib,init_dbase,[],2*5000)]),
-    
-    %% Update Sd with 
-    
-    misc_oam:print("sd_create ~p~n",[[{rpc:call(MasterNode,db_sd,create,[ServiceId,
-									 ServiceVsn,
-									 AppSpecId,AppVsn,
-									 HostId,
-									 VmId,
-									 VmDir,
-									 MasterNode],5000),ServiceId,ServiceVsn}||{ok,ServiceId,ServiceVsn}<-CreateResult]]),
-    
+    % Initiate ssh and dbase on the new master node
+    rpc:call(Vm,ssh,start,[]),
+    [rpc:call(Vm,application,set_env,[master,Par,Val],2000)||
+	{Par,Val}<-args_to_term:transform(EnvArgsStr)],
+    ok=rpc:call(Vm,master_lib,init_dbase,[],2*5000),
+
+   
     %% creat lock
-    {atomic,ok}=rpc:call(MasterNode,db_lock,create,[{db_lock,schedule}],2000),
+  
+
+  %  {atomic,ok}=rpc:call(Vm,db_lock,create,[{db_lock,schedule}],2000),
+    {atomic,ok}=db_lock:create({db_lock,schedule}),
+
+    % Update sd
+    
+    {atomic,ok}=rpc:call(node(),db_sd,create,[ServiceId,ServiceVsn,AppSpec,AppVsn,HostId,VmId,VmDir,Vm],5000),
+    {atomic,ok}=rpc:call(Vm,db_sd,create,[ServiceId,ServiceVsn,AppSpec,AppVsn,HostId,VmId,VmDir,Vm],5000),
+    [{ServiceId,ServiceVsn,AppSpec,AppVsn,HostId,VmId,VmDir,Vm}]=rpc:call(Vm,db_sd,app_spec,[AppSpec],5000),
     
     % Terminate and remove boot master 
-    application:stop(master),
-    {badrpc,_}=rpc:call(node(),master,ping,[],2000),
+ %   application:stop(master),
+ %   {badrpc,_}=rpc:call(node(),master,ping,[],2000),
     % End boot sequence
-    misc_oam:print("End boot sequence ~p~n",[{'End boot sequence',?MODULE,?LINE}]),
+    io:format("End boot sequence ~p~n",[{'End boot sequence',?MODULE,?LINE}]),
     ok.
 %% --------------------------------------------------------------------
 %% Function:tes cases
