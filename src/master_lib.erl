@@ -57,20 +57,22 @@ boot(EnvArgsStr)->
     [{ServiceId,ServiceVsn,AppSpec,AppVsn,HostId,VmId,VmDir,Vm}]=db_sd:app_spec(AppSpec),
     
 
-    % Initiate dbase on the new node
+    % Initiate ssh and dbase on the new master node
+    rpc:call(Vm,ssh,start,[]),
     [rpc:call(Vm,application,set_env,[master,Par,Val],2000)||
 	{Par,Val}<-args_to_term:transform(EnvArgsStr)],
-    ok=rpc:call(Vm,master_lib,init_dbase,[],5000),
+    ok=rpc:call(Vm,master_lib,init_dbase,[],2*5000),
 
    
 
     % Update sd
     
-    ok=rpc:call(Vm,db_sd,create,[ServiceId,ServiceVsn,AppSpec,AppVsn,HostId,VmId,VmDir,Vm],5000),
-    [{ServiceId,ServiceVsn,AppSpec,AppVsn,HostId,VmId,VmDir,Vm}]=rpc:call(Vm,db_sd,spp_spec,[AppSpec],5000),
+    {atomic,ok}=rpc:call(Vm,db_sd,create,[ServiceId,ServiceVsn,AppSpec,AppVsn,HostId,VmId,VmDir,Vm],5000),
+    [{ServiceId,ServiceVsn,AppSpec,AppVsn,HostId,VmId,VmDir,Vm}]=rpc:call(Vm,db_sd,app_spec,[AppSpec],5000),
     
     % Terminate and remove boot master 
-
+    application:stop(master),
+    {badrpc,_}=rpc:call(node(),master,ping,[],2000),
     % End boot sequence
     ok.
 %% --------------------------------------------------------------------
