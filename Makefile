@@ -56,4 +56,4 @@ boot:
 	     { git_user str joq62 } { git_pw str 20Qazxsw20 } { cl_dir str cluster_config }\
 	     { cl_file str cluster_info.hrl } { app_specs_dir str app_specs }\
 	     { service_specs_dir str service_specs } { app_spec  str master_100_c2.app_spec }\
-	    -sname boot -setcookie abc 
+	    -sname server -setcookie abc 

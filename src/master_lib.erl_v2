@@ -49,61 +49,64 @@ boot(EnvArgsStr)->
     
   
  %% Ensure that all masters are stopped 
-    AllAppSpecs=db_app_spec:all_app_specs(),
-    io:format("AllAppSpecs ~p~n",[AllAppSpecs]),
+%    AllAppSpecs=db_app_spec:all_app_specs(),
+%    io:format("AllAppSpecs ~p~n",[AllAppSpecs]),
 
-    AllAppSpecsInfo=[{AppSpec,db_app_spec:read(AppSpec)}||AppSpec<-AllAppSpecs ],
+%    AllAppSpecsInfo=[{AppSpec,db_app_spec:read(AppSpec)}||AppSpec<-AllAppSpecs ],
 
  %   io:format("AllAppSpecsInfo ~p~n",[AllAppSpecsInfo]),
-    MastersToKill=[{XAppSpec,lists:keyfind(vm_dir,1,Directives),lists:keyfind(host,1,Directives),lists:keyfind(vm_id,1,Directives)}||
-		       {XAppSpec,[{_AppId,_AppVsn,Type,Directives,_Services}]}<-AllAppSpecsInfo,
-		       Type==master],
+ %   MastersToKill=[{XAppSpec,lists:keyfind(vm_dir,1,Directives),lists:keyfind(host,1,Directives),lists:keyfind(vm_id,1,Directives)}||
+%		       {XAppSpec,[{_AppId,_AppVsn,Type,Directives,_Services}]}<-AllAppSpecsInfo,
+%		       Type==master],
   %  io:format("MastersToKill ~p~n",[MastersToKill]),
    % glurk=MastersToKill,
-    io:format("Delete master dirs ~p~n",[
-					 [rpc:call(list_to_atom(VmId++"@"++HostId),file,del_dir_r,[VmDir],2000)||
-					     {_,{vm_dir,VmDir},{host,HostId},{vm_id,VmId}}<-MastersToKill]
-					]),
-    io:format("Stop master nodes ~p~n",[
-					 [rpc:call(list_to_atom(VmId++"@"++HostId),init,stop,[],2000)||
-					     {_,_,{host,HostId},{vm_id,VmId}}<-MastersToKill]
-					]),
-    timer:sleep(1500),
+%    io:format("Delete master dirs ~p~n",[
+%					 [rpc:call(list_to_atom(VmId++"@"++HostId),file,del_dir_r,[VmDir],2000)||
+%					     {_,{vm_dir,VmDir},{host,HostId},{vm_id,VmId}}<-MastersToKill]
+%					]),
+ %    io:format("Stop master nodes ~p~n",[
+%					 [rpc:call(list_to_atom(VmId++"@"++HostId),init,stop,[],2000)||
+%					     {_,_,{host,HostId},{vm_id,VmId}}<-MastersToKill]
+%					]),
+ %   timer:sleep(1500),
     
   % Start master on this host 
 
-    {ok,AppSpec}=application:get_env(master,app_spec),
-    {ok,AppSpec,HostId,VmId,Vm,_}=control:create_application(AppSpec),
+ %   {ok,AppSpec}=application:get_env(master,app_spec),
+ %   {ok,AppSpec,HostId,VmId,Vm,_}=control:create_application(AppSpec),
    
-%    AllInfo=db_sd:read_all_info(),
-%    io:format("AllInfo ~p~n",[AllInfo]),
-    [{ServiceId,ServiceVsn,AppSpec,AppVsn,HostId,VmId,VmDir,Vm}]=db_sd:app_spec(AppSpec),
+  %  AllInfo=db_sd:read_all_info(),
+  %  io:format("AllInfo ~p~n",[AllInfo]),
+%    [{ServiceId,ServiceVsn,AppSpec,AppVsn,HostId,VmId,VmDir,Vm}]=db_sd:app_spec(AppSpec),
     
 
     % Initiate ssh and dbase on the new master node
     rpc:call(Vm,ssh,start,[]),
-    [rpc:call(Vm,application,set_env,[master,Par,Val],2000)||
-	{Par,Val}<-args_to_term:transform(EnvArgsStr)],
-    ok=rpc:call(Vm,master_lib,init_dbase,[],2*5000),
+%    [rpc:call(Vm,application,set_env,[master,Par,Val],2000)||
+%	{Par,Val}<-args_to_term:transform(EnvArgsStr)],
+ %   ok=rpc:call(Vm,master_lib,init_dbase,[],2*5000),
 
    
     %% creat lock
   
 
-  %  {atomic,ok}=rpc:call(Vm,db_lock,create,[{db_lock,schedule}],2000),
+ % {atomic,ok}=rpc:call(Vm,db_lock,create,[{db_lock,schedule}],2000),
     {atomic,ok}=db_lock:create({db_lock,schedule}),
 
-    % Update sd
+    % Update sd - need to be doen due to debugging
+    {ok,AppSpec}=application:get_env(master,app_spec),
+    MissingAppSpecsInfo=[{AppSpec,}||AppSpec<-MissingApps],
+ %   io:format("MissingAppSpecsInfo ~p~n",[MissingAppSpecsInfo]),
+    [{_AppId,_AppVsn,Type,_Directives,_Services}]=db_app_spec:read(AppSpec),
     
     {atomic,ok}=rpc:call(node(),db_sd,create,[ServiceId,ServiceVsn,AppSpec,AppVsn,HostId,VmId,VmDir,Vm],5000),
-    {atomic,ok}=rpc:call(Vm,db_sd,create,[ServiceId,ServiceVsn,AppSpec,AppVsn,HostId,VmId,VmDir,Vm],5000),
+  %  {atomic,ok}=rpc:call(Vm,db_sd,create,[ServiceId,ServiceVsn,AppSpec,AppVsn,HostId,VmId,VmDir,Vm],5000),
     [{ServiceId,ServiceVsn,AppSpec,AppVsn,HostId,VmId,VmDir,Vm}]=rpc:call(Vm,db_sd,app_spec,[AppSpec],5000),
     
     % Terminate and remove boot master 
  %   application:stop(master),
  %   {badrpc,_}=rpc:call(node(),master,ping,[],2000),
     % End boot sequence
-    io:format("End boot sequence ~p~n",[{'End boot sequence',?MODULE,?LINE}]),
     ok.
 %% --------------------------------------------------------------------
 %% Function:tes cases
