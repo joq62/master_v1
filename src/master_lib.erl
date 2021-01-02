@@ -64,6 +64,9 @@ boot(EnvArgsStr)->
     ok=rpc:call(Vm,master_lib,init_dbase,[],2*5000),
 
    
+    %% creat lock
+    {atomic,ok}=rpc:call(Vm,db_lock,create,[{db_lock,schedule}],2000),
+    {atomic,ok}=db_lock:create({db_lock,schedule}),
 
     % Update sd
     
@@ -71,8 +74,8 @@ boot(EnvArgsStr)->
     [{ServiceId,ServiceVsn,AppSpec,AppVsn,HostId,VmId,VmDir,Vm}]=rpc:call(Vm,db_sd,app_spec,[AppSpec],5000),
     
     % Terminate and remove boot master 
-    application:stop(master),
-    {badrpc,_}=rpc:call(node(),master,ping,[],2000),
+ %   application:stop(master),
+ %   {badrpc,_}=rpc:call(node(),master,ping,[],2000),
     % End boot sequence
     ok.
 %% --------------------------------------------------------------------
