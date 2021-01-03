@@ -97,6 +97,12 @@ boot(EnvArgsStr)->
     
     %% creat lock
     {atomic,ok}=rpc:call(MasterNode,db_lock,create,[{db_lock,schedule}],2000),
+
+ % 2. Check and update machine status
+    StatusMachines2=rpc:call(MasterNode,machine,status,[all],2*5000),
+    misc_oam:print("StatusMachines2 ~p~n",[StatusMachines2]),
+    ok=rpc:call(MasterNode,machine,update_status,[StatusMachines2],5000),
+    
     
     % Terminate and remove boot master 
     application:stop(master),
