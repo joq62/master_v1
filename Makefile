@@ -35,9 +35,11 @@ test:
 	     { service_specs_dir str service_specs } { int_test int 42 }\
 	    -sname master -setcookie app_test -detached;
 	sleep 1;
-	erl -pa ebin -s master_tests start -sname master_test -setcookie app_test
+	erl -pa ebin -s master_tests start -sname master_test -setcookie abc
 stop:
-	erl_call -a 'init stop []' -sname master -c app_test
+	erl_call -a 'rpc call [master@c0 init stop []]' -sname master -c abc;
+	erl_call -a 'rpc call [master@c1 init stop []]' -sname master -c abc;
+	erl_call -a 'rpc call [master@c2 init stop []]' -sname master -c abc
 boot:
 	rm -rf ebin/* src/*.beam *.beam;
 	rm -rf  *~ */*~  erl_cra*;
