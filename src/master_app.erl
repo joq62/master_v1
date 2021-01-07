@@ -44,8 +44,10 @@
 %%          {error, Reason}
 %% --------------------------------------------------------------------
 start(_Type, _StartArgs) ->
-    {ok,Pid}= master_sup:start_link(),
-    {ok,Pid}.
+    ok=master_sup:start_link(),  % Because of Event manager
+    ok.
+   % {ok,Pid}= master_sup:start_link(),
+  %  {ok,Pid}.
    
 %% --------------------------------------------------------------------
 %% Func: stop/1
