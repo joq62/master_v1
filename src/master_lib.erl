@@ -122,6 +122,7 @@ boot(EnvArgsStr)->
     timer:sleep(1),
     
     %% 2. Create Services
+    io:format("Services ~p~n",[Services]),
     CreateResult=[service:create(ServiceSpecId,VmDir,MasterNode)||ServiceSpecId<-Services],
     rpc:multicall(misc_oam:masters(),
 		  master_log,log,
