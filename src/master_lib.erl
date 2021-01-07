@@ -34,15 +34,32 @@
 boot(EnvArgsStr)->
     
     %% Start
+    %% Start log event handler
+    master_log:start([]),
+
+    rpc:multicall(misc_oam:masters(),
+		  master_log,log,
+		  [["Starting intitilazation of cluster "],
+		   node(),?MODULE,?LINE]),
     %% Set master env 
     [application:set_env(master,Par,Val)||
 	{Par,Val}<-args_to_term:transform(EnvArgsStr)],
    
    % start local common 
-    misc_oam:print("StartCommon ~p~n",[common:start()]),
-   % start dbase
-    misc_oam:print("Start Dbase ~p~n",[dbase:start()]),
-   % Update local dbase for boot
+    CommonStartResult=common:start(),
+    rpc:multicall(misc_oam:masters(),
+		  master_log,log,
+		  [["Common start = ",CommonStartResult],
+		   node(),?MODULE,?LINE]),
+    timer:sleep(1),
+     % start dbase
+    rpc:multicall(misc_oam:masters(),
+		  master_log,log,
+		  [["Dbase start = ",dbase:start()],
+		   node(),?MODULE,?LINE]),
+    timer:sleep(1),
+  
+ % Update local dbase for boot
     init_dbase(),
   
    
@@ -51,15 +68,23 @@ boot(EnvArgsStr)->
     
     % 2. Check and update machine status
     StatusMachines=machine:status(all),
-    misc_oam:print("StatusMachines ~p~n",[StatusMachines]),
+    rpc:multicall(misc_oam:masters(),
+		  master_log,log,
+		  [["StatusMachines = ",StatusMachines],
+		   node(),?MODULE,?LINE]),
+    timer:sleep(1),
     ok=machine:update_status(StatusMachines),
     
 
     %% 3. Check namen of MasterVm and start that one
    
-
     {ok,MasterAppSpec}=application:get_env(master,app_spec),
-    misc_oam:print("MasterAppSpec ~p~n",[MasterAppSpec]),
+    rpc:multicall(misc_oam:masters(),
+		  master_log,log,
+		  [["MasterAppSpec = ",MasterAppSpec],
+		   node(),?MODULE,?LINE]),
+    timer:sleep(1),
+    
     [MasterAppInfo]=db_app_spec:read(MasterAppSpec),
     {AppSpecId,AppVsn,master,Directives,Services}=MasterAppInfo,
     {host,HostId}=lists:keyfind(host,1,Directives),
@@ -68,47 +93,106 @@ boot(EnvArgsStr)->
     
     MasterNode=list_to_atom(VmId++"@"++HostId),
     {ok,MasterNode}=vm:create(HostId,VmId,VmDir,?Cookie),
-    misc_oam:print("MasterNode ~p~n",[MasterNode]),
+    rpc:multicall(misc_oam:masters(),
+		  master_log,log,
+		  [["Create Vm  = ",MasterNode],
+		   node(),?MODULE,?LINE]),
+    timer:sleep(1),
     
     %% Start now on Master Node same procedure as in boot
     %% 1. ssh start
-    misc_oam:print("Start ssh ~p~n",[rpc:call(MasterNode,ssh,start,[],2000)]),
+    rpc:multicall(misc_oam:masters(),
+		  master_log,log,
+		  [["Start ssh @ masternode = ",rpc:call(MasterNode,ssh,start,[],2000)],
+		   node(),?MODULE,?LINE]),
+    timer:sleep(1),
+
+    %%misc_oam:print("Start ssh ~p~n",[rpc:call(MasterNode,ssh,start,[],2000)]),
     
     %% Set application env on MasterNode
-    misc_oam:print("Set application env ~p~n",[[rpc:call(MasterNode,application,set_env,[master,Par,Val],2000)||
-					 {Par,Val}<-args_to_term:transform(EnvArgsStr)]]),
+    rpc:multicall(misc_oam:masters(),
+		  master_log,log,
+		  [["Set application env = ",[
+					      [rpc:call(MasterNode,application,set_env,[master,Par,Val],2000)||
+						  {Par,Val}<-args_to_term:transform(EnvArgsStr)
+					      ]
+					     ]
+		   ],
+		   node(),?MODULE,?LINE]),
+    timer:sleep(1),
     
     %% 2. Create Services
     CreateResult=[service:create(ServiceSpecId,VmDir,MasterNode)||ServiceSpecId<-Services],
-    misc_oam:print("Start master services ~p~n ",[CreateResult]),
-    {pong,_,master}=rpc:call(MasterNode,master,ping,[],200),
+    rpc:multicall(misc_oam:masters(),
+		  master_log,log,
+		  [["Start master services = ",CreateResult],
+		   node(),?MODULE,?LINE]),
+    timer:sleep(1),
+    
+   %% misc_oam:print("Start master services ~p~n ",[CreateResult]),
+    PingResult=rpc:call(MasterNode,master,ping,[],200),
+    rpc:multicall(misc_oam:masters(),
+		  master_log,log,
+		  [["rpc:call(MasterNode,master,ping,[] = ",PingResult],
+		   node(),?MODULE,?LINE]),
+    timer:sleep(1),
+    {pong,_,master}=PingResult,
     %% Init Dbase
-    misc_oam:print("InitDbase ~p~n ",[rpc:call(MasterNode,master_lib,init_dbase,[],2*5000)]),
+    rpc:multicall(misc_oam:masters(),
+		  master_log,log,
+		  [["rpc:call(MasterNode,master_lib,init_dbase,[] = ",rpc:call(MasterNode,master_lib,init_dbase,[],2*5000)],
+		   node(),?MODULE,?LINE]),
+    timer:sleep(1),
+
+    %misc_oam:print("InitDbase ~p~n ",[rpc:call(MasterNode,master_lib,init_dbase,[],2*5000)]),
     
     %% Update Sd with 
-    
-    misc_oam:print("sd_create ~p~n",[[{rpc:call(MasterNode,db_sd,create,[ServiceId,
-									 ServiceVsn,
-									 AppSpecId,AppVsn,
-									 HostId,
-									 VmId,
-									 VmDir,
-									 MasterNode],5000),ServiceId,ServiceVsn}||{ok,ServiceId,ServiceVsn}<-CreateResult]]),
+    MasterSdResult=[{rpc:call(MasterNode,db_sd,create,[ServiceId,
+					ServiceVsn,
+					AppSpecId,AppVsn,
+					HostId,
+					VmId,
+					VmDir,
+					MasterNode],5000),ServiceId,ServiceVsn}||
+	{ok,ServiceId,ServiceVsn}<-CreateResult],
+    rpc:multicall(misc_oam:masters(),
+		  master_log,log,
+		  [["MasterSdResult= ",MasterSdResult],
+		   node(),?MODULE,?LINE]),
+    timer:sleep(1),
     
     %% creat lock
-    {atomic,ok}=rpc:call(MasterNode,db_lock,create,[{db_lock,schedule}],2000),
-
+    LockCreate=rpc:call(MasterNode,db_lock,create,[{db_lock,schedule}],2000),
+    rpc:multicall(misc_oam:masters(),
+		  master_log,log,
+		  [["LockCreate = ",LockCreate],
+		   node(),?MODULE,?LINE]),
+    timer:sleep(1),
+    {atomic,ok}=LockCreate,
  % 2. Check and update machine status
-    StatusMachines2=rpc:call(MasterNode,machine,status,[all],2*5000),
-    misc_oam:print("StatusMachines2 ~p~n",[StatusMachines2]),
-    ok=rpc:call(MasterNode,machine,update_status,[StatusMachines2],5000),
-    
-    
+    StatusMachines2=rpc:call(MasterNode,machine,status,[all],2*5000),  
+    rpc:multicall(misc_oam:masters(),
+		  master_log,log,
+		  [["StatusMachines2 = ",StatusMachines2],
+		   node(),?MODULE,?LINE]),
+    timer:sleep(1),
+  
+    MasterUpdateStatus=rpc:call(MasterNode,machine,update_status,[StatusMachines2],5000),
+    rpc:multicall(misc_oam:masters(),
+		  master_log,log,
+		  [["MasterUpdateStatus = ",MasterUpdateStatus],
+		   node(),?MODULE,?LINE]),
+    timer:sleep(1),
+    ok=MasterUpdateStatus,
     % Terminate and remove boot master 
     application:stop(master),
     {badrpc,_}=rpc:call(node(),master,ping,[],2000),
     % End boot sequence
-    misc_oam:print("End boot sequence ~p~n",[{'End boot sequence',?MODULE,?LINE}]),
+      rpc:multicall(misc_oam:masters(),
+		  master_log,log,
+		  [["Boo sequence ended successfully"],
+		   node(),?MODULE,?LINE]),
+    timer:sleep(1),
     ok.
 %% --------------------------------------------------------------------
 %% Function:tes cases

@@ -13,14 +13,13 @@
  
 %% --------------------------------------------------------------------
 %% Definitions 
--define(HeartbeatInterval,2*60*1000).
+
 %% --------------------------------------------------------------------
 
 %% --------------------------------------------------------------------
 %% External exports
 %% --------------------------------------------------------------------
 
--export([heartbeat/1]).
 -export([start_link/0]).
 
 %% --------------------------------------------------------------------
@@ -48,8 +47,7 @@ start_link()->
    supervisor:start_link({local,?MODULE}, ?MODULE,[]).
 
 
-heartbeat(HeartBeatInterval)->
-    spawn(fun()->h_beat(HeartBeatInterval) end).
+
 
 %% ====================================================================
 %% Server functions
@@ -61,9 +59,11 @@ heartbeat(HeartBeatInterval)->
 %%          {error, Reason}
 %% --------------------------------------------------------------------
 init([]) ->
-    spawn(fun()->h_beat(?HeartbeatInterval) end),
+    Workers=children(),
+    EventMgr={master_log,{master_log,start,[]},
+	      permanent,2000, worker,[master_log]},
     {ok,{{one_for_one,5,10}, 
-	 children()
+	 [EventMgr|Workers]
 	}
     }.
 children()->
@@ -76,21 +76,3 @@ children()->
 %% ====================================================================
 %% Internal functions
 %% ====================================================================
-h_beat(HeartBeatInterval)->
-    timer:sleep(1000),
-    Children=children(),
-    PingResult=[M:ping()||{M, {M, _, _}, _, _, _, [M]}<-Children],
-    Result=update_sd(PingResult,[]),
-    io:format("Result ~p~n",[{time(),Result}]),
-    timer:sleep(HeartBeatInterval),
-    rpc:cast(node(),?MODULE,heartbeat,[HeartBeatInterval]).
-
-update_sd([],Result) ->
-    Result;
-update_sd([{pong,Node,Module}|T],Acc)->
-    rpc:cast(node(),if_db,call,[db_sd,heartbeat,[Module,Node]]),
-    NewAcc=[{ok,Module,Node}|Acc],
-    update_sd(T,NewAcc);
-update_sd([Reason|T],Acc) ->
-    NewAcc=[{error,[Reason,?MODULE,?LINE]}|Acc],
-    update_sd(T,NewAcc).

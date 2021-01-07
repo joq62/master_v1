@@ -5,7 +5,7 @@
 {vsn, "1.0.0" },
 {modules, 
 	  [master_app,master_sup,master,
-	   control,dbase,common]},
+	   control,dbase,common,master_log]},
 {registered,[master,control,dbase,common]},
 {applications, [kernel,stdlib]},
 {mod, {master_app,[]}},

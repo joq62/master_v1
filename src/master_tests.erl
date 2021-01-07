@@ -65,7 +65,7 @@ setup()->
 		  {ok,"app_specs"},
 		  {ok,"service_specs"},
 		  {ok,42}],
-		  [rpc:call(misc_node:node("master"),application,get_env,[master,Par],2000)||{Par,_Val}<-EnvArgsTuples]),
+		  [rpc:multicall(misc_oam:masters(),application,get_env,[master,Par],2000)||{Par,_Val}<-EnvArgsTuples]),
 
     {badrpc,_}=rpc:call(misc_node:node("master"),master,crash_test,[1,0],2000),
 
