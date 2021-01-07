@@ -60,7 +60,7 @@ start_link()->
 %% --------------------------------------------------------------------
 init([]) ->
     Workers=children(),
-    EventMgr={master_log,{master_log,start,[]},
+    EventMgr={master_log,{master_log,start,[[]]},
 	      permanent,2000, worker,[master_log]},
     {ok,{{one_for_one,5,10}, 
 	 [EventMgr|Workers]

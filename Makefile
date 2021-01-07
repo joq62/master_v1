@@ -18,13 +18,11 @@ doc_gen:
 test:
 	rm -rf ebin/* src/*.beam *.beam;
 	rm -rf  *~ */*~  erl_cra*;
-	rm -rf *_specs *_config;
+	rm -rf *_specs *_config *.log;
 #	Common service
 	erlc -o ebin ../../services/common_src/src/*.erl;
 #	Dbase service
 	erlc -o ebin ../../services/dbase_src/src/*.erl;
-#	log service
-	erlc -o ebin ../../services/log_src/src/*.erl;
 #	Control service
 	erlc -o ebin ../../services/control_src/src/*.erl;
 #	master application
