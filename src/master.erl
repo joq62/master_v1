@@ -98,8 +98,8 @@ heartbeat(Interval)->
 %% --------------------------------------------------------------------
 init(_Args) ->
     ssh:start(),
-    {ok,_}=gen_event:start_link({local,?EventId}), % Create the log_event
-    ok=gen_event:add_handler(?EventId,?EventId,[]),
+    gen_event:start_link({local,?EventId}), % Create the log_event
+    gen_event:add_handler(?EventId,?EventId,[]),
     rpc:multicall(misc_oam:masters(),
 		  master_log,log,
 		  [["Server started = ",?MODULE],

@@ -34,8 +34,12 @@
 boot(EnvArgsStr)->
     
     %% Start
+  %  {ok,_}=gen_event:start_link({local,master_log}), % Create the log_event
+  %  ok=gen_event:add_handler(master_log,master_log,[]),
+    
+ %   {ok,Pid}=master_start(),
     %% Start log event handler
-    master_log:start([]),
+    master_log:start(),
 
     rpc:multicall(misc_oam:masters(),
 		  master_log,log,
