@@ -41,6 +41,7 @@ boot(EnvArgsStr)->
 		  master_log,log,
 		  [["Starting intitilazation of cluster "],
 		   node(),?MODULE,?LINE]),
+    timer:sleep(1),
     %% Set master env 
     [application:set_env(master,Par,Val)||
 	{Par,Val}<-args_to_term:transform(EnvArgsStr)],

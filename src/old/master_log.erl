@@ -95,9 +95,14 @@ log(Msg,Node,Module,Line)->
 %% --------------------------------------------------------------------
 init([]) ->
     %% -- Append to log file
-    File="./"++atom_to_list(?MODULE)++".log",
-    io:format("~p~n",[{["Event logger start and log file = "++File],node(),?MODULE,?LINE}]),
-    log_files:write_log_file(File,{log,["Event logger start and log file = "++File],node(),?MODULE,?LINE}),
+    case lists:keyfind(file,1,Args) of
+	{file,File}->
+	    File;
+	false->
+	    File="./"++atom_to_list(?MODULE)++".log"
+    end,
+    io:format("~p~n",[{log,lists:append(["Event logger started with Args"],Args),node(),lists:keyfind(file,1,Args),?MODULE,?LINE}]),
+    log_files:write_log_file(File,{log,lists:append(["Event logger started with Args"],Args),node(),?MODULE,?LINE}),
     {ok, #state{file=File}}.
 %% --------------------------------------------------------------------
 %% Function: handle_call/3
