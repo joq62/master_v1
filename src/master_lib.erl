@@ -31,13 +31,6 @@ local_boot(EnvArgsStr)->
     
    {ok,_}=sys_log:start(),  
     %% Start
-  %  {ok,_}=gen_event:start_link({local,master_log}), % Create the log_event
-  %  ok=gen_event:add_handler(master_log,master_log,[]),
-    
- %   {ok,Pid}=master_start(),
-    %% Start log event handler
-  %  master_log:start(),
-
     rpc:multicall(misc_oam:masters(),
 		  sys_log,log,
 		  [["Starting intitilazation of cluster "],
@@ -88,31 +81,55 @@ local_boot(EnvArgsStr)->
     timer:sleep(1),
     {atomic,ok}=LockCreate,   
  
- %   %% Update Sd with 
- %   MasterSdResult=[{rpc:call(MasterNode,db_sd,create,[ServiceId,
-%					ServiceVsn,
-%					AppSpecId,AppVsn,
-%					HostId,
-%					VmId,
-%					VmDir,
-%					MasterNode],5000),ServiceId,ServiceVsn}||
-%	{ok,ServiceId,ServiceVsn}<-CreateResult],
-%    rpc:multicall(misc_oam:masters(),
-%		  master_log,log,
-%		  [["MasterSdResult= ",MasterSdResult],
-%		   node(),?MODULE,?LINE]),
- %   timer:sleep(1),
+    %% Update Sd with 
+    %% PRitty ugly 
+
+    {ok,MasterAppSpec}=application:get_env(master,app_spec),
+    [MasterAppInfo]=db_app_spec:read(MasterAppSpec),
+    {AppSpecId,AppVsn,master,_Directives,Services}=MasterAppInfo,
+   
+    MasterNode=node(),
+    {VmId,HostId}=misc_node:vmid_hostid(MasterNode),
+    {ok,VmDir}=file:get_cwd(),
     
+    
+
+    rpc:multicall(misc_oam:masters(),
+		  sys_log,log,
+		  [["MasterAppSpec = ",MasterAppSpec],
+		   node(),?MODULE,?LINE]),
+    timer:sleep(1),
+    % Service related info
+    [ServiceSpecId]=Services,
+    [{_ServiceSpecId,ServiceId,ServiceVsn,_StartCmd,_GitPath}]=
+	rpc:call(node(),db_service_def,read,[ServiceSpecId]),
+    
+    rpc:call(MasterNode,db_sd,create,[ServiceId,
+				      ServiceVsn,
+				      AppSpecId,
+				      AppVsn,
+				      HostId,
+				      VmId,
+				      VmDir,
+				      MasterNode],5000),
+
+
     {ok,_}=control:start(),
     {ok,_}=master:start(),
     
+    
+    rpc:multicall(misc_oam:masters(),
+		  sys_log,log,
+		  [["Check Dbase info",db_sd:read_all()],
+		   node(),?MODULE,?LINE]),
+    timer:sleep(1),
+   
     rpc:multicall(misc_oam:masters(),
 		  sys_log,log,
 		  [["local_boot ended succesful"],
 		   node(),?MODULE,?LINE]),
     timer:sleep(1),
    
- 
   
     ok.
 
