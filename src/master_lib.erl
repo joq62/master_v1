@@ -86,8 +86,14 @@ local_boot(EnvArgsStr)->
 
     {ok,MasterAppSpec}=application:get_env(master,app_spec),
     [MasterAppInfo]=db_app_spec:read(MasterAppSpec),
-    {AppSpecId,AppVsn,master,_Directives,Services}=MasterAppInfo,
+    {AppSpecId,AppVsn,master,Directives,EnvVars,Services}=MasterAppInfo,
    
+    rpc:multicall(misc_oam:masters(),
+		  sys_log,log,
+		  [["AppSpecId,AppVsn,master,_Directives,EnvVars,Services = ",
+		   AppSpecId,AppVsn,master,Directives,EnvVars,Services],
+		   node(),?MODULE,?LINE]),
+
     MasterNode=node(),
     {VmId,HostId}=misc_node:vmid_hostid(MasterNode),
     {ok,VmDir}=file:get_cwd(),
