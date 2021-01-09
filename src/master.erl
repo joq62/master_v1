@@ -24,7 +24,7 @@
 %% --------------------------------------------------------------------
 %% Definitions 
 -define(HeartbeatInterval,60*1000).
--define(EventId,master_log).
+
 %% --------------------------------------------------------------------
 
 -export([
@@ -51,7 +51,7 @@
 
 %% Asynchrounus Signals
 boot(EnvArgsStr)->
-    ok=master_lib:boot(EnvArgsStr).
+    ok=master_lib:local_boot(EnvArgsStr).
 
 app_boot(EnvArgsStr)->
        %% Set master env 
@@ -97,14 +97,7 @@ heartbeat(Interval)->
 %
 %% --------------------------------------------------------------------
 init(_Args) ->
-    ssh:start(),
-    gen_event:start_link({local,?EventId}), % Create the log_event
-    gen_event:add_handler(?EventId,?EventId,[]),
-    rpc:multicall(misc_oam:masters(),
-		  master_log,log,
-		  [["Server started = ",?MODULE],
-		   node(),?MODULE,?LINE]),
-    timer:sleep(1),
+   
  %   spawn(fun()->h_beat(?HeartbeatInterval) end),
     {ok, #state{}}.   
     
